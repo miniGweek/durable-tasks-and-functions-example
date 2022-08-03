@@ -1,41 +1,73 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<TodoWorkDb>(opt => opt.UseInMemoryDatabase("ToDoWork"));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.MapGet("/", () => "Hello World!");
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapGet("/todoworkitems", async (TodoWorkDb db) =>
+    await db.Todos.ToListAsync());
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/todoworkitems/complete", async (TodoWorkDb db) =>
+    await db.Todos.Where(t => t.IsComplete).ToListAsync());
+
+app.MapGet("/todoworkitems/{id}", async (int id, TodoWorkDb db) =>
+    await db.Todos.FindAsync(id)
+        is TodoWork todo
+            ? Results.Ok(todo)
+            : Results.NotFound());
+
+app.MapPost("/todoworkitems", async (TodoWork todo, TodoWorkDb db) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateTime.Now.AddDays(index),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    db.Todos.Add(todo);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/todoitems/{todo.Id}", todo);
+});
+
+app.MapPut("/todoworkitems/{id}", async (int id, TodoWork inputTodo, TodoWorkDb db) =>
+{
+    var todo = await db.Todos.FindAsync(id);
+
+    if (todo is null) return Results.NotFound();
+
+    todo.Name = inputTodo.Name;
+    todo.IsComplete = inputTodo.IsComplete;
+
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+});
+
+
+app.MapDelete("/todoworkitems/{id}", async (int id, TodoWorkDb db) =>
+{
+    if (await db.Todos.FindAsync(id) is TodoWork todo)
+    {
+        db.Todos.Remove(todo);
+        await db.SaveChangesAsync();
+        return Results.Ok(todo);
+    }
+
+    return Results.NotFound();
+});
 
 app.Run();
 
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
+class TodoWork
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public int Id { get; set; }
+    public string? Name { get; set; }
+    public bool IsComplete { get; set; }
+}
+
+class TodoWorkDb : DbContext
+{
+    public TodoWorkDb(DbContextOptions<TodoWorkDb> options)
+        : base(options) { }
+
+    public DbSet<TodoWork> Todos => Set<TodoWork>();
 }
