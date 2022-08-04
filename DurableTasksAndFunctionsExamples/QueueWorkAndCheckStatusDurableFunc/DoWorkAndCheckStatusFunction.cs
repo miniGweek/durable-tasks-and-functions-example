@@ -1,14 +1,9 @@
 using System;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using System.Threading;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,13 +60,22 @@ namespace QueueWorkAndCheckStatusDurableFunc
                     $"Instantiating monitor for Work queued - name:{toQueueQork.name}, id: {toDoWork.id}. Expires checking at {endTime}.");
             }
 
+            int counter = 0;
+
             while (context.CurrentUtcDateTime < endTime)
             {
+                counter++;
+                if (!context.IsReplaying)
+                {
+                    _log.LogWarning(
+                        $"### Iteration: {counter} Checking work status for work queued - name:{toQueueQork.name}, id: {toDoWork.id}.");
+                }
+
                 // check work status
                 if (!context.IsReplaying)
                 {
                     _log.LogWarning(
-                        $"Checking work status for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
+                        $"### Iteration: {counter} Checking work status for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
                 }
 
                 var isWorkDone = await context.CallActivityAsync<bool>("CheckWorkStatus_In_API", toDoWork);
@@ -82,20 +86,27 @@ namespace QueueWorkAndCheckStatusDurableFunc
                     if (!context.IsReplaying)
                     {
                         _log.LogWarning(
-                            $"Work status is DONE for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
+                            $"### Iteration: {counter} Work status is DONE for work queued -name:{ toQueueQork.name}, id: { toDoWork.id} at { context.CurrentUtcDateTime}.");
                     }
-
+                    
                     context.SetCustomStatus("WorkDone");
                     break;
                 }
                 else
                 {
                     // Wait for the next checkpoint
-                    var nextCheckpoint = context.CurrentUtcDateTime.AddSeconds(30);
+                    int nextInterval = GetInterval(10, counter);
                     if (!context.IsReplaying)
                     {
                         _log.LogWarning(
-                            $"Next check for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {nextCheckpoint}.");
+                            $"### Iteration: {counter} Next check for work queued - name:{toQueueQork.name}, id: {toDoWork.id} after {nextInterval} seconds.");
+                    }
+
+                    var nextCheckpoint = context.CurrentUtcDateTime.AddSeconds(nextInterval);
+                    if (!context.IsReplaying)
+                    {
+                        _log.LogWarning(
+                            $"### Iteration: {counter} Next check for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {nextCheckpoint}.");
                     }
 
                     await context.CreateTimer(nextCheckpoint, CancellationToken.None);
@@ -103,6 +114,13 @@ namespace QueueWorkAndCheckStatusDurableFunc
             }
 
             return true;
+        }
+
+        private int GetInterval(int seed, int index)
+        {
+            var interval = seed + index * 10;
+
+            return interval > 60 ? 60 : interval;
         }
     }
 }
