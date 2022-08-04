@@ -1,65 +1,108 @@
-using System.Collections.Generic;
-using System.IO;
+using System;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Threading;
+using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+
 
 namespace QueueWorkAndCheckStatusDurableFunc
 {
-    public static class DoWorkAndCheckStatusFunction
+    public class Startup : FunctionsStartup
     {
+        public override void Configure(IFunctionsHostBuilder builder)
+        {
+            builder.Services.AddHttpClient();
+            builder.Services.AddLogging();
+            builder.Services.AddSingleton<DoWorkAndCheckStatusFunction>();
+            builder.Services.AddSingleton<ILogger, ILogger<DoWorkAndCheckStatusFunction>>();
+        }
+    }
+
+    public partial class DoWorkAndCheckStatusFunction
+    {
+        private readonly HttpClient _client;
+        private readonly ILogger<DoWorkAndCheckStatusFunction> _log;
+
+        public DoWorkAndCheckStatusFunction(IHttpClientFactory httpClientFactory,
+            ILogger<DoWorkAndCheckStatusFunction> logger)
+        {
+            this._client = httpClientFactory.CreateClient();
+            this._log = logger;
+        }
+
         [FunctionName("DoWorkAndCheckStatusFunction")]
-        public static async Task<List<string>> RunOrchestrator(
-            [OrchestrationTrigger] IDurableOrchestrationContext context,
-            ILogger log)
+        public async Task<bool> RunOrchestrator(
+            [OrchestrationTrigger] IDurableOrchestrationContext context)
         {
             var toQueueQork = context.GetInput<TodoWork>();
-            log.LogInformation($"Starting queue work activity - name:{toQueueQork.name}");
-            var outputs = new List<string>();
 
-            // Replace "hello" with the name of your Durable Activity Function.
-            outputs.Add(await context.CallActivityAsync<string>("DoWorkAndCheckStatusFunction_QueueWork", "Tokyo"));
-          
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning($"Starting queue work activity - name:{toQueueQork.name}");
+            }
 
-            // returns ["Hello Tokyo!", "Hello Seattle!", "Hello London!"]
-            return outputs;
-        }
+            var toDoWork = await context.CallActivityAsync<TodoWork>("SubmitWork_To_API", toQueueQork);
 
-        [FunctionName("DoWorkAndCheckStatusFunction_Hello")]
-        public static string SayHello([ActivityTrigger] TodoWork work, ILogger log)
-        {
-            log.LogInformation($"Welcoming new work {work.name}.");
-            return $"Welcoming work {work.name}!";
-        }
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning($"Work queued - name:{toQueueQork.name}, id: {toDoWork.id}");
+            }
 
-        [FunctionName("DoWorkAndCheckStatusFunction_QueueWork")]
-        public static async Task<HttpResponseMessage> QueueWork(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestMessage req,
-            [DurableClient] IDurableOrchestrationClient starter,
-            ILogger log)
-        {
-            // Function input comes from the request content.
+            // monitoring logic
+            DateTime endTime = context.CurrentUtcDateTime.AddMinutes(30);
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning(
+                    $"Instantiating monitor for Work queued - name:{toQueueQork.name}, id: {toDoWork.id}. Expires checking at {endTime}.");
+            }
 
-            HttpContent requestContent = req.Content;
-            string jsonContent = requestContent.ReadAsStringAsync().Result;
-            var workItem = JsonSerializer.Deserialize<TodoWork>(jsonContent);
-            string instanceId = await starter.StartNewAsync("DoWorkAndCheckStatusFunction", workItem);
+            while (context.CurrentUtcDateTime < endTime)
+            {
+                // check work status
+                if (!context.IsReplaying)
+                {
+                    _log.LogWarning(
+                        $"Checking work status for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
+                }
 
-            log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
+                var isWorkDone = await context.CallActivityAsync<bool>("CheckWorkStatus_In_API", toDoWork);
 
-            return starter.CreateCheckStatusResponse(req, instanceId);
-        }
+                if (isWorkDone)
+                {
+                    // Work is done
+                    if (!context.IsReplaying)
+                    {
+                        _log.LogWarning(
+                            $"Work status is DONE for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
+                    }
 
-        public class TodoWork
-        {
-            public string name { get; set; }
-            public bool isComplete { get; set; }
+                    context.SetCustomStatus("WorkDone");
+                    break;
+                }
+                else
+                {
+                    // Wait for the next checkpoint
+                    var nextCheckpoint = context.CurrentUtcDateTime.AddSeconds(30);
+                    if (!context.IsReplaying)
+                    {
+                        _log.LogWarning(
+                            $"Next check for work queued - name:{toQueueQork.name}, id: {toDoWork.id} at {nextCheckpoint}.");
+                    }
+
+                    await context.CreateTimer(nextCheckpoint, CancellationToken.None);
+                }
+            }
+
+            return true;
         }
     }
 }

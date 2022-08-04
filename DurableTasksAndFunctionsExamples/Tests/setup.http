@@ -1,20 +1,25 @@
+###
+GET http://localhost:5000/todoworkitems HTTP/1.1
+###
 GET http://localhost:5000/ HTTP/1.1
 ###
 POST http://localhost:5000/todoworkitems HTTP/1.1
 content-type: application/json
 
 {
-    "name" : "Important work 03",
+    "name" : "Important work 02",
     "isComplete" : false
 }
-###
-GET http://localhost:5000/todoworkitems HTTP/1.1
+
 
 ###
 PUT http://localhost:5000/todoworkitems/2 HTTP/1.1
 content-type: application/json
 
 {
-    "name" : "Important work 03 - modified",
+    "name" : "Important work 02 - completed",
     "isComplete" : true
 }
+
+###
+GET http://localhost:5000/status
