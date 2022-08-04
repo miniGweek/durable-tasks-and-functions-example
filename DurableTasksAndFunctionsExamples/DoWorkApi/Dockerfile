@@ -6,10 +6,10 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["DurableTasksAndFunctionsExamples/DoWorkAPI.csproj", "DurableTasksAndFunctionsExamples/"]
-RUN dotnet restore "DurableTasksAndFunctionsExamples/DoWorkAPI.csproj"
+COPY ["DoWorkApi/DoWorkAPI.csproj", "DoWorkApi/"]
+RUN dotnet restore "DoWorkApi/DoWorkAPI.csproj"
 COPY . .
-WORKDIR "/src/DurableTasksAndFunctionsExamples"
+WORKDIR "/src/DoWorkApi"
 RUN dotnet build "DoWorkAPI.csproj" -c Release -o /app/build
 
 FROM build AS publish

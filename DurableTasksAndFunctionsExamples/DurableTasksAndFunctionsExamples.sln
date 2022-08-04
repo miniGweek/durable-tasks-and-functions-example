@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DoWorkAPI", "DurableTasksAndFunctionsExamples\DoWorkAPI.csproj", "{8DD07275-205F-4DDE-86D2-892DD4A74417}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DoWorkAPI", "DoWorkApi\DoWorkAPI.csproj", "{8DD07275-205F-4DDE-86D2-892DD4A74417}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QueueWorkAndCheckStatusDurableFunc", "QueueWorkAndCheckStatusDurableFunc\QueueWorkAndCheckStatusDurableFunc.csproj", "{4EC6C8C6-B2CE-45D9-AF46-FDE857254CEA}"
 EndProject

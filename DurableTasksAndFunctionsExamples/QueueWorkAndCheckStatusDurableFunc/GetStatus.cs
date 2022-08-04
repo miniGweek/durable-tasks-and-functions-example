@@ -57,13 +57,13 @@ public partial class DoWorkAndCheckStatusFunction
                     return new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(
-                            $"Congratulations, your presentation with id '{instanceId}' has been accepted!")
+                            $"Work is done for the '{instanceId}'!")
                     };
                 else
                     return new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(
-                            $"We are sorry! Unfortunately your presentation with id '{instanceId}' has not been accepted.")
+                            $"Orchestration finished, but Work for the '{instanceId}' hasn't been done.")
                     };
             }
         }
