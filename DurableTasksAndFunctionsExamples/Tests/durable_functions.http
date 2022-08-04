@@ -1,7 +1,10 @@
-POST http://localhost:7071/api/DoWorkAndCheckStatusFunction_QueueWork HTTP/1.1
+POST http://localhost:7071/api/queuework HTTP/1.1
 content-type: application/json
 
 {
-    "name" : "My important work",
+    "name" : "My important work 01",
     "isComplete" : false
 }
+
+###
+GET http://localhost:7071/api/status/3d34e7a25aea423fbbf5e07c886de968 HTTP/1.1
