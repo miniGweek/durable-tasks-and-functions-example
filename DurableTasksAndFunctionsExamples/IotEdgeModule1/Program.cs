@@ -14,9 +14,30 @@ using Newtonsoft.Json;
 
 namespace IotEdgeModule1
 {
+    //MessageBody arriving from the SimulatedTemperature sensor module
+    //Indicative of module to module communication
+    class MessageBody
+    {
+        public Machine machine { get; set; }
+        public Ambient ambient { get; set; }
+        public string timeCreated { get; set; }
+    }
+    class Machine
+    {
+        public double temperature { get; set; }
+        public double pressure { get; set; }
+    }
+    class Ambient
+    {
+        public double temperature { get; set; }
+        public int humidity { get; set; }
+    }
+
+
     internal class Program
     {
         static int counter;
+        static int temperatureThreshold { get; set; } = 25;
 
         static void Main(string[] args)
         {
@@ -54,46 +75,23 @@ namespace IotEdgeModule1
             Console.WriteLine("IoT Hub module client initialized.");
 
             // Register callback to be called when a message is received by the module
-            await ioTHubModuleClient.SetInputMessageHandlerAsync("input1", PipeMessage, ioTHubModuleClient);
-            await UpdateModuleTwin(ioTHubModuleClient);
+            //await ioTHubModuleClient.SetInputMessageHandlerAsync("input1", PipeMessage, ioTHubModuleClient);
+
+            // Read the TemperatureThreshold value from the module twin's desired properties
+            var moduleTwin = await ioTHubModuleClient.GetTwinAsync();
+            await OnDesiredPropertiesUpdate(moduleTwin.Properties.Desired, ioTHubModuleClient);
+
+            // Attach a callback for updates to the module twin's desired properties.
+            await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertiesUpdate, null);
+
+            // Register a callback for messages that are received by the module. Messages received on the inputFromSensor endpoint are sent to the FilterMessages method.
+            await ioTHubModuleClient.SetInputMessageHandlerAsync("inputFromAnotherModule", FilterMessages, ioTHubModuleClient);
+
+            //Update module twin locally and expect to see trigger azure function
+            await UpdateModuleTwin(ioTHubModuleClient, moduleTwin);
         }
 
-        /// <summary>
-        /// This method is called whenever the module is sent a message from the EdgeHub. 
-        /// It just pipe the messages without any change.
-        /// It prints all the incoming messages.
-        /// </summary>
-        static async Task<MessageResponse> PipeMessage(Message message, object userContext)
-        {
-            int counterValue = Interlocked.Increment(ref counter);
-
-            var moduleClient = userContext as ModuleClient;
-            if (moduleClient == null)
-            {
-                throw new InvalidOperationException("UserContext doesn't contain " + "expected values");
-            }
-
-            byte[] messageBytes = message.GetBytes();
-            string messageString = Encoding.UTF8.GetString(messageBytes);
-            Console.WriteLine($"Received message: {counterValue}, Body: [{messageString}]");
-
-            if (!string.IsNullOrEmpty(messageString))
-            {
-                using (var pipeMessage = new Message(messageBytes))
-                {
-                    foreach (var prop in message.Properties)
-                    {
-                        pipeMessage.Properties.Add(prop.Key, prop.Value);
-                    }
-                    await moduleClient.SendEventAsync("output1", pipeMessage);
-
-                    Console.WriteLine("Received message sent");
-                }
-            }
-            return MessageResponse.Completed;
-        }
-
-        static async Task UpdateModuleTwin(ModuleClient ioTHubModuleClient)
+        static async Task UpdateModuleTwin(ModuleClient ioTHubModuleClient, Twin moduleTwin)
         {
             var allowedEvents = new List<string>() { "WakeUp", "DoWork", "Sleep", "Shutdown", "FinishWork" };
             while (true)
@@ -102,15 +100,94 @@ namespace IotEdgeModule1
                 var randomNumber = rnd.Next(5);
                 var allowedEvent = allowedEvents[randomNumber];
                 await Task.Delay(10000);
-                Twin twin = await ioTHubModuleClient.GetTwinAsync();
-                Console.WriteLine(JsonConvert.SerializeObject(twin.Properties));
-                
+
+                Console.WriteLine(JsonConvert.SerializeObject(moduleTwin.Properties));
+
                 TwinCollection reportedProperties = new TwinCollection();
                 reportedProperties["EventThatHappened"] = allowedEvent;
                 reportedProperties["EventId"] = randomNumber;
 
                 Console.WriteLine($"Sending EventThatHappened reported property: {allowedEvent}, EventId: {randomNumber}");
                 await ioTHubModuleClient.UpdateReportedPropertiesAsync(reportedProperties);
+            }
+        }
+
+        static Task OnDesiredPropertiesUpdate(TwinCollection desiredProperties, object userContext)
+        {
+            try
+            {
+                Console.WriteLine($"Desired property change: {JsonConvert.SerializeObject(desiredProperties)}");
+
+                if (desiredProperties["TemperatureThreshold"] != null)
+                    temperatureThreshold = desiredProperties["TemperatureThreshold"];
+
+            }
+            catch (AggregateException ex)
+            {
+                foreach (Exception exception in ex.InnerExceptions)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("Error when receiving desired property: {0}", exception);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Error when receiving desired property: {0}", ex.Message);
+            }
+            return Task.CompletedTask;
+        }
+
+        static async Task<MessageResponse> FilterMessages(Message message, object userContext)
+        {
+            var counterValue = Interlocked.Increment(ref counter);
+            try
+            {
+                ModuleClient moduleClient = (ModuleClient)userContext;
+                var messageBytes = message.GetBytes();
+                var messageString = Encoding.UTF8.GetString(messageBytes);
+                Console.WriteLine($"Received message {counterValue}: [{messageString}]");
+
+                // Get the message body.
+                var messageBody = JsonConvert.DeserializeObject<MessageBody>(messageString);
+
+                if (messageBody != null && messageBody.machine.temperature > temperatureThreshold)
+                {
+                    Console.WriteLine($"Machine temperature {messageBody.machine.temperature} " +
+                        $"exceeds threshold {temperatureThreshold}");
+                    using (var filteredMessage = new Message(messageBytes))
+                    {
+                        foreach (KeyValuePair<string, string> prop in message.Properties)
+                        {
+                            filteredMessage.Properties.Add(prop.Key, prop.Value);
+                        }
+
+                        filteredMessage.Properties.Add("MessageType", "Alert");
+                        await moduleClient.SendEventAsync("output1", filteredMessage);
+                    }
+                }
+
+                // Indicate that the message treatment is completed.
+                return MessageResponse.Completed;
+            }
+            catch (AggregateException ex)
+            {
+                foreach (Exception exception in ex.InnerExceptions)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("Error in sample: {0}", exception);
+                }
+                // Indicate that the message treatment is not completed.
+                var moduleClient = (ModuleClient)userContext;
+                return MessageResponse.Abandoned;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Error in sample: {0}", ex.Message);
+                // Indicate that the message treatment is not completed.
+                ModuleClient moduleClient = (ModuleClient)userContext;
+                return MessageResponse.Abandoned;
             }
         }
     }
