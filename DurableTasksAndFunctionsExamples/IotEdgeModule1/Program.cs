@@ -88,7 +88,7 @@ namespace IotEdgeModule1
             await ioTHubModuleClient.SetInputMessageHandlerAsync("inputFromAnotherModule", FilterMessages, ioTHubModuleClient);
 
             //Update module twin locally and expect to see trigger azure function
-            await UpdateModuleTwin(ioTHubModuleClient, moduleTwin);
+            // await UpdateModuleTwin(ioTHubModuleClient, moduleTwin);
         }
 
         static async Task UpdateModuleTwin(ModuleClient ioTHubModuleClient, Twin moduleTwin)
@@ -146,7 +146,8 @@ namespace IotEdgeModule1
                 ModuleClient moduleClient = (ModuleClient)userContext;
                 var messageBytes = message.GetBytes();
                 var messageString = Encoding.UTF8.GetString(messageBytes);
-                Console.WriteLine($"Received message {counterValue}: [{messageString}]");
+                var timeStamp = DateTime.UtcNow;
+                Console.WriteLine($"Received message {counterValue}: [{messageString}] at {timeStamp}");
 
                 // Get the message body.
                 var messageBody = JsonConvert.DeserializeObject<MessageBody>(messageString);
