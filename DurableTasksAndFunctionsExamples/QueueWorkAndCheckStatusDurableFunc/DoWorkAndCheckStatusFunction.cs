@@ -1,5 +1,7 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
@@ -42,9 +44,36 @@ namespace QueueWorkAndCheckStatusDurableFunc
 
             if (!context.IsReplaying)
             {
-                _log.LogWarning($"Starting queue work activity - name:{toQueueQork.name}");
+                _log.LogWarning($"### Starting queue work activity - name:{toQueueQork.name}");
             }
 
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning($"### Starting queue work activity - name:{toQueueQork.name} - Before SubmitWork instance 1");
+            }
+            await context.CallSubOrchestratorAsync("SubmitWork1AndWait", toQueueQork);
+
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning($"### Starting queue work activity - name:{toQueueQork.name} - Before SubmitWork instance 2");
+            }
+            await context.CallSubOrchestratorAsync("SubmitWork1AndWait", toQueueQork);
+
+            if (!context.IsReplaying)
+            {
+                _log.LogWarning($"### Starting queue work activity - name:{toQueueQork.name} - Before SubmitWork instance 3");
+            }
+            await context.CallSubOrchestratorAsync("SubmitWork1AndWait", toQueueQork);
+
+            return true;
+        }
+
+
+        [FunctionName("SubmitWork1AndWait")]
+        public async Task<bool> SubmitWork1AndWait(
+            [OrchestrationTrigger] IDurableOrchestrationContext context)
+        {
+            var toQueueQork = context.GetInput<TodoWork>();
             var toDoWork = await context.CallActivityAsync<TodoWork>("SubmitWork_To_API", toQueueQork);
 
             if (!context.IsReplaying)
@@ -86,9 +115,9 @@ namespace QueueWorkAndCheckStatusDurableFunc
                     if (!context.IsReplaying)
                     {
                         _log.LogWarning(
-                            $"### Iteration: {counter} Work status is DONE for work queued -name:{ toQueueQork.name}, id: { toDoWork.id} at { context.CurrentUtcDateTime}.");
+                            $"### Iteration: {counter} Work status is DONE for work queued -name:{toQueueQork.name}, id: {toDoWork.id} at {context.CurrentUtcDateTime}.");
                     }
-                    
+
                     context.SetCustomStatus("WorkDone");
                     break;
                 }
