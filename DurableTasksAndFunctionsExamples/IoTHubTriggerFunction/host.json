@@ -8,8 +8,8 @@
       }
     },
     "logLevel": {
-      "default": "Warning",
-      "QueueWorkAndCheckStatusDurableFunc.DoWorkAndCheckStatusFunction": "Information"
+      "default": "Error",
+      "IoTHubTriggerFunction.IotHubTriggerFunction": "Information"
     }
   }
 }

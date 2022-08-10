@@ -7,6 +7,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DoWorkAPI", "DoWorkApi\DoWo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QueueWorkAndCheckStatusDurableFunc", "QueueWorkAndCheckStatusDurableFunc\QueueWorkAndCheckStatusDurableFunc.csproj", "{4EC6C8C6-B2CE-45D9-AF46-FDE857254CEA}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IoTHubTriggerFunction", "IoTHubTriggerFunction\IoTHubTriggerFunction.csproj", "{6334EE58-A1B8-4127-B036-F7544E7B167A}"
+EndProject
+Project("{34036844-64E7-43A5-9151-4AD90E180989}") = "IoTEdgeSampleModule", "IoTEdgeSampleModule\IoTEdgeSampleModule.iotedgeproj", "{677808AA-B8A2-41F8-AE07-2A06A2FF545C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IotEdgeModule1", "IotEdgeModule1\IotEdgeModule1.csproj", "{B1C21D2E-BF9C-4A91-A37C-D8C02DFD3D6A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdateModuleTwinDesiredProperties", "UpdateModuleTwinDesiredProperties\UpdateModuleTwinDesiredProperties.csproj", "{CA591159-F8B8-49C5-B70D-B28E2C5D4DB0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +29,22 @@ Global
 		{4EC6C8C6-B2CE-45D9-AF46-FDE857254CEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4EC6C8C6-B2CE-45D9-AF46-FDE857254CEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4EC6C8C6-B2CE-45D9-AF46-FDE857254CEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6334EE58-A1B8-4127-B036-F7544E7B167A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6334EE58-A1B8-4127-B036-F7544E7B167A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6334EE58-A1B8-4127-B036-F7544E7B167A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6334EE58-A1B8-4127-B036-F7544E7B167A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{677808AA-B8A2-41F8-AE07-2A06A2FF545C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{677808AA-B8A2-41F8-AE07-2A06A2FF545C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{677808AA-B8A2-41F8-AE07-2A06A2FF545C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{677808AA-B8A2-41F8-AE07-2A06A2FF545C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1C21D2E-BF9C-4A91-A37C-D8C02DFD3D6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1C21D2E-BF9C-4A91-A37C-D8C02DFD3D6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1C21D2E-BF9C-4A91-A37C-D8C02DFD3D6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1C21D2E-BF9C-4A91-A37C-D8C02DFD3D6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA591159-F8B8-49C5-B70D-B28E2C5D4DB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA591159-F8B8-49C5-B70D-B28E2C5D4DB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA591159-F8B8-49C5-B70D-B28E2C5D4DB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA591159-F8B8-49C5-B70D-B28E2C5D4DB0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
