@@ -7,47 +7,49 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IotEdgeModule1
 {
-    //MessageBody arriving from the SimulatedTemperature sensor module
-    //Indicative of module to module communication
-    class MessageBody
-    {
-        public Machine machine { get; set; }
-        public Ambient ambient { get; set; }
-        public string timeCreated { get; set; }
-    }
-    class Machine
-    {
-        public double temperature { get; set; }
-        public double pressure { get; set; }
-    }
-    class Ambient
-    {
-        public double temperature { get; set; }
-        public int humidity { get; set; }
-    }
-
-
     internal class Program
     {
         static int counter;
         static int temperatureThreshold { get; set; } = 20;
 
+        public static ServiceProvider ServiceProvider { get; private set; }
+
         static void Main(string[] args)
         {
-            Init().Wait();
+            var serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+
+            // Build the our IServiceProvider and set our static reference to it
+            ServiceProvider = serviceCollection.BuildServiceProvider();
+
+            // Initialize module
+            ServiceProvider.GetRequiredService<TestModule>()
+                .InitializeAsync()
+                .GetAwaiter()
+                .GetResult();
+
 
             // Wait until the app unloads or is cancelled
             var cts = new CancellationTokenSource();
             AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
             Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
             WhenCancelled(cts.Token).Wait();
+        }
+
+        private static void ConfigureServices(ServiceCollection serviceCollection)
+        {
+            serviceCollection.AddLogging();
+            serviceCollection.AddModuleClient(new AmqpTransportSettings(TransportType.Amqp_Tcp_Only));
+            serviceCollection.AddSingleton<TestModule>();
         }
 
         /// <summary>
@@ -89,6 +91,21 @@ namespace IotEdgeModule1
 
             //Update module twin locally and expect to see trigger azure function
             // await UpdateModuleTwin(ioTHubModuleClient, moduleTwin);
+
+            while (true)
+            {
+                await Task.Delay(10000);
+                var deviceEvent = new DeviceEventMessageBody()
+                {
+                    deviceId = "80001212",
+                    deviceType = "Captis Multi",
+                    note = "This is a test"
+
+                };
+                var deviceEventString = System.Text.Json.JsonSerializer.Serialize(deviceEvent);
+                var eventMessage = new Message(Encoding.UTF8.GetBytes(deviceEventString));
+                await ioTHubModuleClient.SendEventAsync("outputs", eventMessage);
+            }
         }
 
         static async Task UpdateModuleTwin(ModuleClient ioTHubModuleClient, Twin moduleTwin)
