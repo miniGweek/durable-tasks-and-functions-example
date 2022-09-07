@@ -28,7 +28,7 @@ namespace IotEdgeModule1
         public string deviceId { get; set; }
         public string deviceType { get; set; }
         public string note { get; set; }
-
         public string correlationId { get; set; }
+        public DateTime generatedTimeStamp { get; set; }
     }
 }

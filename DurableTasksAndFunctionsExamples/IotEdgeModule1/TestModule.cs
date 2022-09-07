@@ -25,7 +25,8 @@ namespace IotEdgeModule1
         public async Task InitializeAsync()
         {
             await this._moduleClient.OpenAsync();
-            _logger.LogInformation("My module client initialized.");
+            _logger.LogInformation("TestModule client initialized.");
+            Console.WriteLine("From Console.WriteLine - My module client initialized");
 
             // Resolve temperature thresold from module twin
             var moduleTwin = await this._moduleClient.GetTwinAsync();
@@ -46,6 +47,26 @@ namespace IotEdgeModule1
 
             // Register callback to be called when a message is received by the module
             //await this._moduleClient.SetInputMessageHandlerAsync("input1", PipeMessage, null);
+            int messageSentCounter = 0;
+            while (true)
+            {
+                messageSentCounter++;
+                await Task.Delay(10000);
+                var deviceEvent = new DeviceEventMessageBody()
+                {
+                    deviceId = "unique-device-id",
+                    deviceType = "DeviceType-string",
+                    note = "This is a test",
+                    generatedTimeStamp = DateTime.Now,
+                    correlationId = Guid.NewGuid().ToString()
+
+                };
+                var deviceEventString = System.Text.Json.JsonSerializer.Serialize(deviceEvent);
+                var eventMessage = new Message(Encoding.UTF8.GetBytes(deviceEventString));
+                await this._moduleClient.SendEventAsync("outputs", eventMessage);
+                _logger.LogInformation("Sent event number {MessageCounter} eventMessage {EventMessage} TimeStamp {TimeStamp}",
+                    messageSentCounter, deviceEventString,DateTime.Now);
+            }
         }
 
         private Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
