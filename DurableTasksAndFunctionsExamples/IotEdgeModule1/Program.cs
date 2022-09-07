@@ -37,7 +37,7 @@ namespace IotEdgeModule1
     internal class Program
     {
         static int counter;
-        static int temperatureThreshold { get; set; } = 25;
+        static int temperatureThreshold { get; set; } = 20;
 
         static void Main(string[] args)
         {
@@ -164,7 +164,7 @@ namespace IotEdgeModule1
                         }
 
                         filteredMessage.Properties.Add("MessageType", "Alert");
-                        await moduleClient.SendEventAsync("output1", filteredMessage);
+                        await moduleClient.SendEventAsync("outputs", filteredMessage);
                     }
                 }
 
